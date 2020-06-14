@@ -128,3 +128,46 @@ prepareTable1 <- function(balance,
   colnames(resultsTable)[5] <- afterLabel
   return(resultsTable)
 }
+
+getBalance <- function(databaseId,
+                       studyFolder,
+                       targetId,
+                       comparatorId,
+                       analysisId,
+                       outcomeId){
+  pathToRds<-file.path(studyFolder,"shinyData",
+                       sprintf("covariate_balance_t%d_c%d_%s.rds",targetId,comparatorId,databaseId))
+  balance <- readRDS(pathToRds)
+  
+  pathToRds<-file.path(studyFolder,"shinyData",
+                       sprintf("covariate_%s.rds",databaseId))
+  covariate <- readRDS(pathToRds)
+  
+  colnames(balance)<-SqlRender::snakeCaseToCamelCase(colnames(balance))
+  colnames(covariate)<-SqlRender::snakeCaseToCamelCase(colnames(covariate))
+  
+  balance <- balance[balance$analysisId == analysisId & balance$outcomeId == outcomeId, ]
+  balance <- merge(balance, covariate[,c("covariateId", "covariateAnalysisId", "covariateName")])
+  balance <- balance[ c("covariateId",
+                        "covariateName",
+                        "covariateAnalysisId", 
+                        "targetMeanBefore", 
+                        "comparatorMeanBefore", 
+                        "stdDiffBefore", 
+                        "targetMeanAfter", 
+                        "comparatorMeanAfter",
+                        "stdDiffAfter")]
+  colnames(balance) <- c("covariateId",
+                         "covariateName",
+                         "analysisId",
+                         "beforeMatchingMeanTreated",
+                         "beforeMatchingMeanComparator",
+                         "beforeMatchingStdDiff",
+                         "afterMatchingMeanTreated",
+                         "afterMatchingMeanComparator",
+                         "afterMatchingStdDiff")
+  balance$absBeforeMatchingStdDiff <- abs(balance$beforeMatchingStdDiff)
+  balance$absAfterMatchingStdDiff <- abs(balance$afterMatchingStdDiff)
+  return(balance)
+  
+}
